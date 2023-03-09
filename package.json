@@ -1,0 +1,19 @@
+{
+  "name": "resme",
+  "version": "1.0.0",
+  "description": "server for resme app",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tonyandy5630/student-helper-be.git"
+  },
+  "author": "tonyandy76",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tonyandy5630/student-helper-be/issues"
+  },
+  "homepage": "https://github.com/tonyandy5630/student-helper-be#readme"
+}
