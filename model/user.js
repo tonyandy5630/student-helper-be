@@ -24,7 +24,7 @@ const userSchema = new Schema({
     require: true,
   },
   isActive: {
-    type: boolean,
+    type: Boolean,
     require: true,
   },
   followers: {
@@ -35,9 +35,8 @@ const userSchema = new Schema({
     type: [Object],
     subjectRank: {
       subjectCode: String,
-      rank: number,
+      rank: Number,
     },
-    require: true,
   },
 });
 
