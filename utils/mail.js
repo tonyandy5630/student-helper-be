@@ -17,7 +17,6 @@ exports.sendMail = ({ sendTo, subject, text, html }) => {
 
   sgMail.send(mail).then(
     () => {
-      console.log(sendTo);
       console.log("sent");
     },
     (err) => {

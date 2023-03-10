@@ -3,6 +3,9 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { sendMail } = require("../utils/mail");
 const { SECRET_KEY } = require("../constants/auth");
+const dotenv = require("dotenv");
+
+dotenv.config();
 
 //* Model
 const User = require("../model/user");
@@ -84,7 +87,6 @@ exports.signUp = (req, res, next) => {
         role: "user",
         isActive: true,
       });
-      console.log(hashedPwd);
       return newUser.save();
     })
     .then((result) => {

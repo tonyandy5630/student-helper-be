@@ -1,4 +1,7 @@
+const dotenv = require("dotenv");
+dotenv.config();
+
 module.exports = {
-  SECRET_KEY: "t0NY_BUi!",
+  SECRET_KEY: process.env.SECRET_KEY,
   MAIL_SENDER: "tonyandy456@protonmail.com",
 };
