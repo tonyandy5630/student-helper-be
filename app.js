@@ -4,7 +4,7 @@ const app = express();
 const bodyParser = require("body-parser");
 const helmet = require("helmet");
 const morgan = require("morgan");
-
+const { MONGODB_URI } = require("./constants/shared");
 //* Routes
 const authRoutes = require("./routes/auth");
 
@@ -26,9 +26,7 @@ app.use(bodyParser.json());
 app.use("/auth", authRoutes);
 
 mongoose
-  .connect(
-    "mongodb+srv://tonyandy76:20112001@cluster0.rl5slss.mongodb.net/RESME?retryWrites=true&w=majority"
-  )
+  .connect(MONGODB_URI)
   .then((res) => {
     console.log("connect success");
     app.listen(8080);

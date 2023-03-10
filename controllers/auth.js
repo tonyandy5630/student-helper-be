@@ -1,6 +1,7 @@
 const { validationResult } = require("express-validator");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { sendMail } = require("../utils/mail");
 const { SECRET_KEY } = require("../constants/auth");
 
 //* Model
@@ -16,7 +17,6 @@ exports.login = (req, res, next) => {
     throw error;
   }
   const { email, pwd, username, fullname } = req.body;
-  console.log(username, pwd);
   User.findOne({ username })
     .then((user) => {
       if (!user) {
@@ -61,4 +61,48 @@ exports.login = (req, res, next) => {
     });
 };
 
-exports.signUp = (res, req, next) => {};
+exports.signUp = (req, res, next) => {
+  const errors = validationResult(req);
+
+  if (!errors.isEmpty()) {
+    const error = new Error("Validation failed");
+    error.statusCode = 422;
+    error.data = errors.array();
+    res.status(422).send(error.data);
+    throw error;
+  }
+  const { email, fullname, pwd, username } = req.body;
+  bcrypt
+    .hash(pwd, 12)
+    .then((hashedPwd) => {
+      const newUser = new User({
+        _id: username,
+        email,
+        fullname,
+        password: hashedPwd,
+        username,
+        role: "user",
+        isActive: true,
+      });
+      console.log(hashedPwd);
+      return newUser.save();
+    })
+    .then((result) => {
+      const mail = {
+        sendTo: email,
+        subject: "RESME Signup",
+        text: "Welcome to RESME",
+        html: "<h1>Signup success fully</h1>",
+      };
+      sendMail(mail);
+      return res
+        .status(201)
+        .json({ message: "User created", userId: result._id });
+    })
+    .catch((err) => {
+      if (!err.statusCode) {
+        err.statusCode = 500;
+      }
+      next(err);
+    });
+};
