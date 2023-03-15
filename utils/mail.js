@@ -2,12 +2,12 @@ const sgMail = require("@sendgrid/mail");
 const path = require("path");
 const dotenv = require("dotenv");
 const { MAIL_SENDER } = require("../constants/auth");
+const bcrypt = require("bcryptjs");
 
 dotenv.config({ override: true });
 
 // sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-console.log(process.env.SENDGRID_API_KEY);
 
 exports.sendMail = ({ sendTo, subject, text, html }) => {
   const mail = {
@@ -16,18 +16,25 @@ exports.sendMail = ({ sendTo, subject, text, html }) => {
     subject,
     text,
     html,
+    trackingSettings: {
+      clickTracking: {
+        enable: false,
+        enableText: false,
+      },
+      openTracking: {
+        enable: false,
+      },
+    },
   };
 
-  sgMail.send(mail).then(
-    () => {
-      console.log("sent");
-    },
-    (err) => {
-      console.error(err);
+  return sgMail.send(mail);
+};
 
-      if (err.response) {
-        console.error(err.response.body);
-      }
-    }
-  );
+exports.hashVerify = async (verifyString) => {
+  try {
+    const hashedCode = await bcrypt.hash(verifyString, 12);
+    return hashedCode;
+  } catch (error) {
+    return error;
+  }
 };

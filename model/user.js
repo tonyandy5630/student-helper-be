@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
-const ObjectId = Schema.Types.ObjectId;
 
 const userSchema = new Schema({
   _id: {
@@ -10,6 +9,7 @@ const userSchema = new Schema({
   email: {
     type: String,
     require: true,
+    unique: true,
   },
   password: {
     type: String,
@@ -26,14 +26,15 @@ const userSchema = new Schema({
   username: {
     type: String,
     require: true,
+    unique: true,
   },
   isActive: {
     type: Boolean,
-    require: true,
+    default: false,
   },
   followers: {
     type: Number,
-    require: true,
+    default: 0,
   },
   rankInSubjects: {
     type: [Object],
@@ -41,6 +42,10 @@ const userSchema = new Schema({
       subjectCode: String,
       rank: Number,
     },
+  },
+  isBanned: {
+    type: Boolean,
+    default: false,
   },
 });
 
