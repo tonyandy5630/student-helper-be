@@ -1,10 +1,13 @@
 const sgMail = require("@sendgrid/mail");
+const path = require("path");
 const dotenv = require("dotenv");
 const { MAIL_SENDER } = require("../constants/auth");
 
-dotenv.config();
+dotenv.config({ override: true });
 
+// sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+console.log(process.env.SENDGRID_API_KEY);
 
 exports.sendMail = ({ sendTo, subject, text, html }) => {
   const mail = {
