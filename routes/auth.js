@@ -5,7 +5,7 @@ const { body } = require("express-validator");
 const User = require("../model/user");
 const authController = require("../controllers/auth");
 const dotenv = require("dotenv");
-const auth = require("../constants/auth");
+const Recaptcha = require("express-recaptcha").RecaptchaV2;
 
 dotenv.config();
 
@@ -25,13 +25,21 @@ router.post(
         });
       })
       .normalizeEmail(),
-    body("pwd").trim().isLength({ min: 5 }),
-    body("fullname").trim().not().isEmpty(),
+    body("pwd")
+      .trim()
+      .isLength({ min: 5, max: 20 })
+      .withMessage("Minimum length is 5 to 20 characters"),
+    body("username")
+      .trim()
+      .isLength({ min: 5, max: 20 })
+      .withMessage("Minimum length is 5 to 20 characters"),
   ],
   authController.signUp
 );
 
 router.get("/verification/:email/:token", authController.verifyEmail);
+
+router.post("/captcha", authController.verifyCAPTCHA);
 
 router.post(
   "/verification/resendToken",

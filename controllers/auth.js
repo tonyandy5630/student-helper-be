@@ -5,97 +5,90 @@ const { sendMail } = require("../utils/mail");
 const { generateVerifyToken } = require("../utils/auth");
 //* constant
 const { SECRET_KEY } = require("../constants/auth");
-const { APP_NAME, CLIENT_URL } = require("../constants/shared");
-
+const { APP_NAME } = require("../constants/shared");
+const { signUpTemplate, verifyTemplate } = require("../constants/mail");
 //* Model
 const User = require("../model/user");
 const Token = require("../model/token");
-const user = require("../model/user");
 
-exports.login = (req, res, next) => {
-  const errors = validationResult(req);
-  let loadedUser;
-  if (!errors.isEmpty()) {
-    const error = new Error("Validation failed");
-    error.statusCode = 422;
-    error.data = errors.array();
-    throw error;
-  }
-  const { email, pwd, username, fullname } = req.body;
-  User.findOne({ username })
-    .then((user) => {
-      if (!user) {
-        const error = new Error("Username not exist");
-        error.statusCode = 401;
-        res.status(401).send(error.message);
-        throw error;
-      } else if (user.isBanned) {
-        const error = new Error(`You have been banned from ${APP_NAME}`);
-        error.statusCode = 401;
-        res.statusCode(401).send(error.message);
-        throw error;
-      }
-      loadedUser = user;
-      return bcrypt.compare(pwd, user.password);
-    })
-    .then((isEqual) => {
-      if (!isEqual) {
-        const error = new Error("Wrong password");
-        error.statusCode = 401;
-        res.status(401).send(error.message);
-        throw error;
-      }
-      const token = jwt.sign(
-        {
-          email: loadedUser.email,
-          userId: loadedUser._id.toString(),
-        },
-        SECRET_KEY,
-        { expiresIn: "3h" }
-      );
-      res
-        .status(200)
-        .json({ token, userId: loadedUser._id.toString() })
-        .catch((error) => {
-          if (!error.statusCode) {
-            error.statusCode = 500;
-          }
-          next(error);
-        });
-    })
-    .catch((error) => {
-      if (!error.statusCode) {
-        error.statusCode = 500;
-      }
-      next(error);
+exports.login = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    let loadedUser;
+    //* validate
+    if (!errors.isEmpty()) {
+      const error = new Error("Validation failed");
+      error.statusCode = 422;
+      error.data = errors.array();
+      throw error;
+    }
+    const { pwd, username } = req.body;
+    const user = await User.findOne({ username });
+
+    if (!user) {
+      return res.status(400).send({ message: "Username is not exist" });
+    } else if (user.isBanned) {
+      return res
+        .status(401)
+        .send({ message: `You have been banned from ${APP_NAME}` });
+    } else if (!user.isActive) {
+      return res
+        .status(400)
+        .send({ message: "You haven't verify your email address" });
+    }
+
+    loadedUser = user;
+    const isPwdEqual = await bcrypt.compare(pwd, user.password);
+    if (!isPwdEqual) {
+      return res.status(401).send({ message: "Wrong password" });
+    }
+
+    const token = jwt.sign(
+      {
+        email: loadedUser.email,
+        userId: loadedUser._id.toString(),
+      },
+      SECRET_KEY,
+      { expiresIn: "3h" }
+    );
+    return res.status(200).json({
+      message: "Login successfully",
+      data: { user: loadedUser, access_token: token },
     });
+  } catch (error) {
+    if (!error.statusCode) {
+      error.statusCode = 500;
+    }
+    next(error);
+  }
 };
 
 exports.signUp = async (req, res, next) => {
   try {
     const errors = validationResult(req);
-
     if (!errors.isEmpty()) {
-      const error = new Error("Validation failed");
-      error.statusCode = 422;
-      error.data = errors.array();
-      res.status(422).send(error.data);
-      throw error;
+      const errorObj = {};
+      //* add propteries to errorObj
+      errors.array().map((err) => {
+        errorObj[err.param] = err.msg;
+      });
+
+      return res.status(422).send({ data: errorObj });
     }
-    const { email, fullname, pwd, username } = req.body;
+
+    const { email, pwd, username } = req.body;
 
     const hashedPwd = await bcrypt.hash(pwd, 12);
     const user = new User({
       _id: username,
       email,
-      fullname,
       password: hashedPwd,
       username,
       role: "user",
     });
     const newUser = await user.save();
     const { _id: userId } = newUser;
-    let verifyHashedString = generateVerifyToken(email, userId);
+    let verifyHashedString = await generateVerifyToken(email, userId);
 
     const token = new Token({
       _userId: userId,
@@ -103,16 +96,12 @@ exports.signUp = async (req, res, next) => {
       email,
     });
     const newToken = await token.save();
-    const mail = {
-      sendTo: email,
-      subject: "RESME Signup",
-      text: `Welcome to RESME click for verify`,
-      html: `<a clicktracking="off" href='${CLIENT_URL}/auth/verification/${newToken.email}/${newToken.token}'>verify</a> for verification`,
-    };
+    const mail = signUpTemplate(newToken.email, newToken.token);
     await sendMail(mail);
-    return res
-      .status(200)
-      .json({ message: "check email", userid: token._userId });
+    return res.status(200).json({
+      message: "Register successfully",
+      data: { userid: token._userId, email },
+    });
   } catch (error) {
     if (!error.statusCode) {
       error.statusCode = 500;
@@ -130,6 +119,7 @@ exports.loginFailed = (req, res, next) => {
 
 exports.verifyEmail = async (req, res, next) => {
   try {
+    //* check token
     const token = await Token.findOne({ token: req.params.token });
     if (!token) {
       return res.status(400).send({
@@ -142,12 +132,12 @@ exports.verifyEmail = async (req, res, next) => {
     if (!user) {
       return res.status(401).send({
         message:
-          "We were unable to find a user for this verification. Please SignUp!",
+          "We were unable to find a user for this verification. Please sign up",
       });
     } else if (user.isActive) {
       return res
         .status(200)
-        .send({ message: "User has been already verified. Please Login" });
+        .send({ message: "User has been already verified. Please login" });
     }
 
     //* verify user
@@ -171,6 +161,7 @@ exports.verifyEmail = async (req, res, next) => {
 exports.resendVerifyEmail = async (req, res, next) => {
   try {
     const userToResend = await User.findOne({ email: req.body.email });
+    //* user not exist
     if (!userToResend) {
       return res.status(400).send({
         message:
@@ -186,6 +177,7 @@ exports.resendVerifyEmail = async (req, res, next) => {
     const { _id: userId, email } = userToResend;
     const verifyHashedString = await generateVerifyToken(userId, email);
 
+    //* send token
     const token = new Token({
       _userId: userId,
       token: verifyHashedString,
@@ -194,18 +186,44 @@ exports.resendVerifyEmail = async (req, res, next) => {
 
     await token.save();
 
-    const mail = {
-      sendTo: email,
-      subject: "RESME resend verification link",
-      text: `Welcome to RESME click for verify`,
-      html: `<a clicktracking="off" href='${CLIENT_URL}/auth/verification/${email}/${verifyHashedString}'>Link</a> for verification`,
-    };
+    const mail = verifyTemplate(email, verifyHashedString);
     const sentMail = await sendMail(mail);
     const mailStatusCode = sentMail[0].statusCode;
     //* succeed
     if (mailStatusCode < 300) {
       return res.status(200).json({ message: "Sent verify link" });
     }
+  } catch (error) {
+    if (!error.statusCode) {
+      error.statusCode = 500;
+    }
+    next(error);
+  }
+};
+exports.verifyCAPTCHA = async (req, res, next) => {
+  try {
+    const { captcha } = req.body;
+    if (!captcha) {
+      return res.status(400).send({ message: "Captcha is not verified " });
+    }
+    const verifyURL = `https://www.google.com/recaptcha/api/siteverify?secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${captcha}`;
+    const options = {
+      method: "POST",
+      body: `secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${captcha}`,
+    };
+
+    const response = await fetch(verifyURL, options);
+    const data = await response.json();
+    const success = data.success;
+    if (!success) {
+      return res.status(400).send({ message: "Captcha is not verified" });
+    }
+
+    return res.status(200).send({
+      data: {
+        captcha_verified: true,
+      },
+    });
   } catch (error) {
     if (!error.statusCode) {
       error.statusCode = 500;
