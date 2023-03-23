@@ -13,34 +13,27 @@ const Token = require("../model/token");
 
 exports.login = async (req, res, next) => {
   try {
-    const errors = validationResult(req);
-    let loadedUser;
-    //* validate
-    if (!errors.isEmpty()) {
-      const error = new Error("Validation failed");
-      error.statusCode = 422;
-      error.data = errors.array();
-      throw error;
-    }
     const { pwd, username } = req.body;
     const user = await User.findOne({ username });
 
     if (!user) {
-      return res.status(400).send({ message: "Username is not exist" });
+      return res
+        .status(422)
+        .send({ data: { username: "Username is not exist" } });
     } else if (user.isBanned) {
       return res
         .status(401)
         .send({ message: `You have been banned from ${APP_NAME}` });
     } else if (!user.isActive) {
       return res
-        .status(400)
-        .send({ message: "You haven't verify your email address" });
+        .status(422)
+        .send({ data: { username: "You haven't verify your email address" } });
     }
 
     loadedUser = user;
     const isPwdEqual = await bcrypt.compare(pwd, user.password);
     if (!isPwdEqual) {
-      return res.status(401).send({ message: "Wrong password" });
+      return res.status(422).send({ data: { pwd: "Wrong password" } });
     }
 
     const token = jwt.sign(
@@ -120,24 +113,22 @@ exports.loginFailed = (req, res, next) => {
 exports.verifyEmail = async (req, res, next) => {
   try {
     //* check token
-    const token = await Token.findOne({ token: req.params.token });
-    if (!token) {
-      return res.status(400).send({
-        msg: "Your verification link may have expired. Please click on resend for verify your Email.",
-      });
-    }
-    const { _userId: tokenUserId, email: tokenEmail } = token;
-    const user = await User.findOne({ _id: tokenUserId, email: tokenEmail });
+    const { email } = req.params;
+    const user = await User.findOne({ email: email });
 
     if (!user) {
-      return res.status(401).send({
-        message:
-          "We were unable to find a user for this verification. Please sign up",
+      return res.status(406).send({
+        message: "Email not found",
       });
     } else if (user.isActive) {
-      return res
-        .status(200)
-        .send({ message: "User has been already verified. Please login" });
+      return res.status(208).send({ message: "Email is verified" });
+    }
+
+    const token = await Token.findOne({ token: req.params.token });
+    if (!token) {
+      return res.status(401).send({
+        message: "Token expired",
+      });
     }
 
     //* verify user
@@ -148,7 +139,7 @@ exports.verifyEmail = async (req, res, next) => {
       await token.deleteOne({ _userId: verifyUser._id });
       return res
         .status(200)
-        .send({ message: "Your account has been successfully verified" });
+        .send({ message: "Your account has successfully verified" });
     }
   } catch (error) {
     if (!error.statusCode) {
