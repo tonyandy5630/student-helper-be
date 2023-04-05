@@ -15,14 +15,17 @@ passport.use(
       scope: ["profile", "email"],
     },
     async function (request, accessToken, refreshToken, profile, done) {
-      //* Add user to db here
       try {
         let existedUser = await User.findOne({ googleId: profile.id });
+        let existedEmail = await User.findOne({ email: profile.email });
+
+        if (existedEmail) {
+          return done(null, existedEmail);
+        }
 
         //* existing user
         if (existedUser) return done(null, existedUser);
         const { id, displayName, email, picture, email_verified } = profile;
-        console.log(profile);
         const newUser = new User({
           _id: email,
           googleId: id,
@@ -59,13 +62,12 @@ passport.use(
   )
 );
 
-passport.serializeUser((user, done) => {
-  console.log(user);
+passport.serializeUser(async (user, done) => {
   done(null, user);
 });
 
 passport.deserializeUser(async (user, done) => {
   //* find user if existed
-  const existedUser = await User.findOne({ id: user.id, isActive: true });
+  const existedUser = await User.findOne({ email: user.email, isActive: true });
   if (existedUser) done(null, existedUser);
 });
