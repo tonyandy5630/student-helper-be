@@ -35,9 +35,13 @@
     "nodemailer": "^6.9.1",
     "passport": "^0.6.0",
     "passport-google-oauth2": "^0.2.0",
+    "universal-cookie-express": "^4.0.3",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
+    "cookie-parser": "^1.4.6",
+    "cookie-session": "^2.0.0",
+    "cors": "^2.8.5",
     "nodemon": "^2.0.21"
   }
 }

@@ -5,7 +5,8 @@ const { body } = require("express-validator");
 const User = require("../model/user");
 const authController = require("../controllers/auth");
 const dotenv = require("dotenv");
-const Recaptcha = require("express-recaptcha").RecaptchaV2;
+const authCheck = require("../middleware/auth-check");
+const isAuth = require("../middleware/is-auth");
 
 dotenv.config();
 
@@ -43,7 +44,7 @@ router.post("/captcha", authController.verifyCAPTCHA);
 
 router.post(
   "/verification/resendToken",
-  body("email").isEmail().withMessage("Must enter an email"),
+  body("email").isEmail().withMessage("Must have an email"),
   authController.resendVerifyEmail
 );
 
@@ -56,8 +57,12 @@ router.get(
   "/google/callback",
   passport.authenticate("google", {
     failureRedirect: "/failed",
-    successRedirect: "/success",
+    successRedirect: `${process.env.CLIENT_URL}`,
   })
 );
+
+router.get("/success", authController.successAuthenticate);
+
+router.post("/logout", isAuth, authController.logout);
 
 module.exports = router;

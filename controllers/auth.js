@@ -40,6 +40,7 @@ exports.login = async (req, res, next) => {
       {
         email: loadedUser.email,
         userId: loadedUser._id.toString(),
+        at: new Date().getTime(),
       },
       SECRET_KEY,
       { expiresIn: "3h" }
@@ -151,16 +152,25 @@ exports.verifyEmail = async (req, res, next) => {
 
 exports.resendVerifyEmail = async (req, res, next) => {
   try {
-    const userToResend = await User.findOne({ email: req.body.email });
+    const { email: tokenEmail } = req.body;
+    const userToResend = await User.findOne({ email: tokenEmail });
+    const checkToken = await Token.findOne({ email: tokenEmail });
+
+    if (checkToken) {
+      return res
+        .status(202)
+        .send({ message: "An email has sent to your email. Please check" });
+    }
+
     //* user not exist
     if (!userToResend) {
-      return res.status(400).send({
+      return res.status(406).send({
         message:
           "We were unable to find a user with that email. Make sure your Email is correct!",
       });
       //* already activated
     } else if (userToResend.isActive) {
-      return res.status(200).send({
+      return res.status(201).send({
         message: "This account has been already verified. Please log in.",
       });
     }
@@ -191,6 +201,7 @@ exports.resendVerifyEmail = async (req, res, next) => {
     next(error);
   }
 };
+
 exports.verifyCAPTCHA = async (req, res, next) => {
   try {
     const { captcha } = req.body;
@@ -220,5 +231,53 @@ exports.verifyCAPTCHA = async (req, res, next) => {
       error.statusCode = 500;
     }
     next(error);
+  }
+};
+
+exports.successAuthenticate = async function (req, res) {
+  if (req.user) {
+    const { email, followers, username, rankInSubjects, _id } = req.user;
+    const user = { email, followers, username, rankInSubjects };
+    const token = jwt.sign(
+      {
+        email: email,
+        userId: _id,
+      },
+      SECRET_KEY,
+      { expiresIn: "3h" }
+    );
+    console.log(req.user);
+    return res.status(200).json({ data: { user, access_token: token } });
+  }
+  return res.status(401).send({ message: "not authenticate" });
+};
+
+exports.logout = async function (req, res, next) {
+  try {
+    if (!req.headers || !req.headers.authorization) {
+      return res.status(401).send({ message: "Not authorized" });
+    }
+
+    if (!req.session) {
+      return res.send({ message: "Session expired" });
+    }
+
+    if (!req.body) {
+      return res.status(406).send({ message: "Didn't send body" });
+    }
+    const { userId: bodyId } = req.body;
+
+    const token = req.headers.authorization;
+    const decodedToken = jwt.verify(token, process.env.SECRET_KEY);
+    const { userId: tokenId } = decodedToken;
+
+    if (tokenId !== bodyId) {
+      return res.status(401).send({ message: "not authenticated" });
+    }
+
+    req.session.destroy();
+    return res.status(200).send({ message: "Log out successfully" });
+  } catch (error) {
+    return res.status(401).send({ message: "not authenticated" });
   }
 };

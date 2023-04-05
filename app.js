@@ -7,12 +7,25 @@ const morgan = require("morgan");
 const passport = require("passport");
 const session = require("express-session");
 const { MONGODB_URI, PORT } = require("./constants/shared");
+const cookieSession = require("cookie-session");
+const cors = require("cors");
+const authCheck = require("./middleware/auth-check");
 require("./utils/passport");
+const cookie_parser = require("cookie-parser");
 //* Routes
 const authRoutes = require("./routes/auth");
+const classRoutes = require("./routes/class");
+const { successAuthenticate } = require("./controllers/auth");
 
 app.use(helmet());
 app.use(morgan("combined"));
+// app.use(
+//   cookieSession({
+//     name: "authCookie",
+//     keys: "session",
+//     maxAge: 24 * 60 * 60 * 1000, // 24 hours
+//   })
+// );
 app.use(
   session({
     secret: "SECRET",
@@ -23,21 +36,23 @@ app.use(
     },
   })
 );
+
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(bodyParser.json());
+app.use(cookie_parser());
 
-app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE");
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-  );
-  next();
-});
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL, // allow to server to accept request from different origin
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    credentials: true, // allow session cookie from browser to pass through
+    allowedHeaders: "Origin,X-Requested-With,Content-Type,Accept,Authorization",
+  })
+);
 
 app.use("/auth", authRoutes);
+app.use("/class", classRoutes);
 
 mongoose
   .connect(MONGODB_URI)
