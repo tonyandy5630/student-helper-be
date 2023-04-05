@@ -54,6 +54,8 @@ app.use(
 app.use("/auth", authRoutes);
 app.use("/class", classRoutes);
 
+app.get("/", authCheck, successAuthenticate);
+
 mongoose
   .connect(MONGODB_URI)
   .then((res) => {

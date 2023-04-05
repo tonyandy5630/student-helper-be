@@ -246,7 +246,6 @@ exports.successAuthenticate = async function (req, res) {
       SECRET_KEY,
       { expiresIn: "3h" }
     );
-    console.log(req.user);
     return res.status(200).json({ data: { user, access_token: token } });
   }
   return res.status(401).send({ message: "not authenticate" });
