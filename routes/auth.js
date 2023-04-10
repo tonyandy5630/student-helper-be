@@ -10,6 +10,8 @@ const isAuth = require("../middleware/is-auth");
 
 dotenv.config();
 
+const client = process.env.CLIENT_URL;
+
 router.post("/login", authController.login);
 
 router.post(
@@ -57,11 +59,10 @@ router.get(
   "/google/callback",
   passport.authenticate("google", {
     failureRedirect: "/failed",
-    successRedirect: `${process.env.CLIENT_URL}/home`,
+    successRedirect: `${client}/dashboard`,
   })
 );
-
-router.get("/success", authController.successAuthenticate);
+router.post("/success", authController.successAuthenticate);
 
 router.post("/logout", isAuth, authController.logout);
 

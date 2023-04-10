@@ -246,7 +246,7 @@ exports.successAuthenticate = async function (req, res) {
       SECRET_KEY,
       { expiresIn: "3h" }
     );
-    return res.status(200).json({ data: { user, access_token: token } });
+    return res.status(200).send({ data: { user, access_token: token } });
   }
   return res.status(401).send({ message: "not authenticate" });
 };
@@ -264,13 +264,12 @@ exports.logout = async function (req, res, next) {
     if (!req.body) {
       return res.status(406).send({ message: "Didn't send body" });
     }
-    const { userId: bodyId } = req.body;
+    const { email: bodyEmail } = req.body;
 
     const token = req.headers.authorization;
     const decodedToken = jwt.verify(token, process.env.SECRET_KEY);
-    const { userId: tokenId } = decodedToken;
-
-    if (tokenId !== bodyId) {
+    const { email: tokenEmail } = decodedToken;
+    if (tokenEmail !== bodyEmail) {
       return res.status(401).send({ message: "not authenticated" });
     }
 
