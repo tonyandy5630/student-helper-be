@@ -10,12 +10,14 @@ const { MONGODB_URI, PORT } = require("./constants/shared");
 const cookieSession = require("cookie-session");
 const cors = require("cors");
 const authCheck = require("./middleware/auth-check");
-require("./utils/passport");
+
 const cookie_parser = require("cookie-parser");
 //* Routes
 const authRoutes = require("./routes/auth");
 const classRoutes = require("./routes/class");
 const { successAuthenticate } = require("./controllers/auth");
+require("./config/googlePassport");
+require("./config/localPassport");
 
 app.use(helmet());
 app.use(morgan("combined"));
@@ -50,6 +52,7 @@ app.use(
     allowedHeaders: "Origin,X-Requested-With,Content-Type,Accept,Authorization",
   })
 );
+console.log("app.js");
 
 app.use("/auth", authRoutes);
 app.use("/class", classRoutes);

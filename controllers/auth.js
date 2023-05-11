@@ -1,11 +1,16 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { validationResult } = require("express-validator");
-const { sendMail } = require("../utils/mail");
+const { sendMail } = require("../services/mail");
 const { generateVerifyToken } = require("../utils/auth");
+const passport = require("passport");
+
 //* constant
 const { SECRET_KEY } = require("../constants/auth");
 const { APP_NAME } = require("../constants/shared");
+const { validateError } = require("../utils/validateErrors");
+const { passportRedirectOptns } = require("../constants/auth");
+
 const { signUpTemplate, verifyTemplate } = require("../constants/mail");
 //* Model
 const User = require("../model/user");
@@ -13,42 +18,28 @@ const Token = require("../model/token");
 
 exports.login = async (req, res, next) => {
   try {
-    const { pwd, username } = req.body;
-    const user = await User.findOne({ username });
+    passport.authenticate("local", async (err, user, _info) => {
+      console.log("/controller/auth.js");
+      if (err || !user) {
+        return res
+          .status(422)
+          .send({ data: { username: "Username is not exist" } });
+      } else if (user.isBanned) {
+        return res
+          .status(401)
+          .send({ message: `You have been banned from ${APP_NAME}` });
+      } else if (!user.isActive) {
+        return res.status(422).send({
+          data: { username: "You haven't verify your email address" },
+        });
+      }
+      console.log(req.user);
+      req.logIn(user, { session: true }, async (error) => {
+        if (error) return next(error);
+      });
 
-    if (!user) {
-      return res
-        .status(422)
-        .send({ data: { username: "Username is not exist" } });
-    } else if (user.isBanned) {
-      return res
-        .status(401)
-        .send({ message: `You have been banned from ${APP_NAME}` });
-    } else if (!user.isActive) {
-      return res
-        .status(422)
-        .send({ data: { username: "You haven't verify your email address" } });
-    }
-
-    loadedUser = user;
-    const isPwdEqual = await bcrypt.compare(pwd, user.password);
-    if (!isPwdEqual) {
-      return res.status(422).send({ data: { pwd: "Wrong password" } });
-    }
-
-    const token = jwt.sign(
-      {
-        email: loadedUser.email,
-        userId: loadedUser._id.toString(),
-        at: new Date().getTime(),
-      },
-      SECRET_KEY,
-      { expiresIn: "3h" }
-    );
-    return res.status(200).json({
-      message: "Login successfully",
-      data: { user: loadedUser, access_token: token },
-    });
+      return res.status(200).json({ message: "login successfully" });
+    })(req, res, next);
   } catch (error) {
     if (!error.statusCode) {
       error.statusCode = 500;
@@ -62,7 +53,7 @@ exports.signUp = async (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       const errorObj = {};
-      //* add propteries to errorObj
+      //* add properties to errorObj
       errors.array().map((err) => {
         errorObj[err.param] = err.msg;
       });
@@ -80,6 +71,7 @@ exports.signUp = async (req, res, next) => {
       username,
       role: "user",
     });
+
     const newUser = await user.save();
     const { _id: userId } = newUser;
     let verifyHashedString = await generateVerifyToken(email, userId);
@@ -236,8 +228,21 @@ exports.verifyCAPTCHA = async (req, res, next) => {
 
 exports.successAuthenticate = async function (req, res) {
   if (req.user) {
-    const { email, followers, username, rankInSubjects, _id } = req.user;
-    const user = { email, followers, username, rankInSubjects };
+    const {
+      email,
+      followers,
+      username,
+      rankInSubjects,
+      _id,
+      hasSupportProfile,
+    } = req.user;
+    const user = {
+      email,
+      followers,
+      username,
+      rankInSubjects,
+      hasSupportProfile,
+    };
     const token = jwt.sign(
       {
         email: email,

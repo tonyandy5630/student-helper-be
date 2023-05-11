@@ -1,8 +1,9 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
-
+const bcrypt = require("bcryptjs");
 const USER_ROLE = "USER";
-const ADMIN_ROLE = "ADMIN";
+const jwt = require("jsonwebtoken");
+// const ADMIN_ROLE = "ADMIN";
 
 const userSchema = new Schema({
   _id: {
@@ -19,7 +20,10 @@ const userSchema = new Schema({
     require: true,
     unique: true,
   },
-  password: String,
+  password: {
+    type: String,
+    require: true,
+  },
   fullname: String,
   role: {
     type: String,
@@ -46,10 +50,30 @@ const userSchema = new Schema({
       rank: Number,
     },
   },
+  hasSupportProfile: {
+    type: Boolean,
+    default: false,
+  },
   isBanned: {
     type: Boolean,
     default: false,
   },
 });
+
+userSchema.methods.validatePassword = async function (pwd) {
+  return bcrypt.compare(pwd, this.password);
+};
+
+userSchema.methods.jwtSign = async function () {
+  return jwt.sign(
+    {
+      email: this.email,
+      userId: this._id.toString(),
+      at: new Date().getTime(),
+    },
+    SECRET_KEY,
+    { expiresIn: "3h" }
+  );
+};
 
 module.exports = mongoose.model("User", userSchema);

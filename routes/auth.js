@@ -7,12 +7,12 @@ const authController = require("../controllers/auth");
 const dotenv = require("dotenv");
 const authCheck = require("../middleware/auth-check");
 const isAuth = require("../middleware/is-auth");
-
+const { passportRedirectOptns } = require("../constants/auth");
 dotenv.config();
-
 const client = process.env.CLIENT_URL;
 
-router.post("/login", authController.login);
+// router.post("/login", passport.authenticate("local", passportRedirectOptns));
+router.post("/login", passport.authenticate("local"), authController.login);
 
 router.post(
   "/signup",
@@ -57,11 +57,9 @@ router.get(
 
 router.get(
   "/google/callback",
-  passport.authenticate("google", {
-    failureRedirect: "/failed",
-    successRedirect: `${client}/dashboard`,
-  })
+  passport.authenticate("google", passportRedirectOptns)
 );
+
 router.post("/success", authController.successAuthenticate);
 
 router.post("/logout", isAuth, authController.logout);

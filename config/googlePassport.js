@@ -1,11 +1,14 @@
 const { OAUTH_ID, OATH_CLIENT_SECRET } = require("../constants/auth");
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth2").Strategy;
+const LocalStrategy = require("passport-local").Strategy;
 const User = require("../model/user");
-const { generateVerifyToken } = require("./auth");
+const { generateVerifyToken } = require("../utils/auth");
 const Token = require("../model/token");
 const { verifyTemplate } = require("../constants/mail");
-const { sendMail } = require("./mail");
+const { sendMail } = require("../services/mail");
+const bcrypt = require("bcryptjs");
+
 passport.use(
   new GoogleStrategy(
     {
@@ -25,6 +28,7 @@ passport.use(
 
         //* existing user
         if (existedUser) return done(null, existedUser);
+
         const { id, displayName, email, picture, email_verified } = profile;
         const newUser = new User({
           _id: email,
@@ -35,6 +39,7 @@ passport.use(
           isActive: email_verified,
         });
         const saveNewUser = await newUser.save();
+
         //* not verified in google
         if (!email_verified) {
           //* verify token
@@ -45,9 +50,11 @@ passport.use(
             email,
           });
           await token.save();
+          //* send mail
           const mail = verifyTemplate(email, verifyHashedString);
           const sentMail = await sendMail(mail);
           const mailStatusCode = sentMail[0].statusCode;
+
           if (mailStatusCode < 300) {
             return done(null, saveNewUser);
           }
